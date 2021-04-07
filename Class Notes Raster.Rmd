@@ -9,3 +9,238 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 i fucked up and overwrote my notes for rasters before pushing them to git hub hahahhaahahahahah
+
+i was able to go to the history in r to at least add in the code i ran during class but it's messy bc i ran some things multiple times and haven't gone through and cleaned it up yet
+
+```{r}
+
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(raster)
+library(raster)
+library(mapdata)
+library(marmap)
+chl_raster = raster('data/A20021822017212.L3m_MC_CHL_chlor_a_9km.nc')
+class(chl_raster)
+chl_raster
+names(chl_raster) = "chl_a"
+
+
+chl_pts = raster::rasterToPoints(chl_raster, spatial = TRUE) #creates a dataframe with spacial data
+class(chl_pts)
+chl_df  = data.frame(chl_pts)
+head(chl_df )
+global_chl_map = ggplot() +
+geom_raster(data = chl_df, aes(x = x, y = y, fill =log10(chl_a)))+ #chlorophyll is often plotted on a log scale
+theme_classic()
+global_chl_map
+hist(log10(chl_df$chl_a))
+cols = rainbow(7)
+cols
+cols = rainbow(7, rev=TRUE)
+cols
+cols = rainbow(7, rev=TRUE)[-1] #rev puts it in reverse so it will go from blue to red, also we're dropping the first value bc we don't use purple in chlorophyll data
+cols
+global_chl_map = ggplot() +
+geom_raster(data = chl_df, aes(x = x, y = y, fill =log10(chl_a)))+ #chlorophyll is often plotted on a log scale
+theme_classic()+
+scale_fill_gradientn(colors = cols, limits= c(-1.5, 0.75)) #chose these values based off the histogram
+global_chl_map
+ggsave(global_chl_map, filename = "figures/cholorphyll_map.pdf")
+ggsave(global_chl_map, filename = "figures/cholorphyll_map.pdf",
+height = 5, width = 9)
+lon = c(-72, -62) #first # should be west, second east
+lat = c(39, 47) #first # south, second north
+chl_GOM_raster = raster::crop(chl_raster, extent(c(lon, lat)))
+chl_GOM_df = data.frame(rasterToPoints(chl_GOM_raster, spatial = TRUE))
+head(chl_GOM_df)
+GOM_chl_map = ggplot ()+
+geom_raster(data = chl_GOM_df, aes(x=x, y = y, fill = log10(chl_a)))+
+theme_bw()+
+scale_fill_gradientn(colors = cols, limits = c(-1.5, 0.75))
+GOM_chl_map
+world_map = map_data("worldHires")
+head(world_map)
+GOM_chl_map = ggplot ()+
+geom_raster(data = chl_GOM_df, aes(x=x, y = y, fill = log10(chl_a)))+
+theme_bw()+
+scale_fill_gradientn(colors = cols, limits = c(-1, 1.75))+
+coord_fixed(xlim = lon, ylim = lat)+ #crops map to something reasonable
+geom_polygon(data=world_map, aes(x = long, y = lat, group = group))
+GOM_chl_map
+GOM_chl_map = ggplot ()+
+geom_raster(data = chl_GOM_df, aes(x=x, y = y, fill = log10(chl_a)))+
+theme_bw()+
+scale_fill_gradientn(colors = cols, limits = c(-1, 1.75))+
+coord_fixed(xlim = lon, ylim = lat, expand = FALSE)+ #crops map to something reasonable, expand = FALSE gets rid of the buffer space that ggplot defaults to
+geom_polygon(data=world_map, aes(x = long, y = lat, group = group))
+GOM_chl_map
+GOM_chl_map = ggplot ()+
+geom_raster(data = chl_GOM_df, aes(x=x, y = y, fill = log10(chl_a)))+
+theme_bw()+
+scale_fill_gradientn(colors = cols, limits = c(-1, 1.75))+
+coord_fixed(xlim = lon, ylim = lat, expand = FALSE, ratio= 1:3)+ #crops map to something reasonable, expand = FALSE gets rid of the buffer space that ggplot defaults to, ratio accounts for scaling the aspect ratio based on how lines of longitude gt gloser together towards the poles
+geom_polygon(data=world_map, aes(x = long, y = lat, group = group))
+GOM_chl_map
+GOM_chl_map = ggplot ()+
+geom_raster(data = chl_GOM_df, aes(x=x, y = y, fill = log10(chl_a)))+
+theme_bw()+
+scale_fill_gradientn(colors = cols, limits = c(-1, 1.75))+
+coord_fixed(xlim = lon, ylim = lat, expand = FALSE, ratio= 1.3)+ #crops map to something reasonable, expand = FALSE gets rid of the buffer space that ggplot defaults to, ratio accounts for scaling the aspect ratio based on how lines of longitude gt gloser together towards the poles
+geom_polygon(data=world_map, aes(x = long, y = lat, group = group))
+GOM_chl_map
+bath_m_row = marmap::getNOAA.bathy(lon1 = -72, long = -62, #you can hard code this
+lat1 = lat[1], lat2 = lat[2], #or use the data in  your vector
+resolution = 4) #default resolution is 4 minutes
+bath_m_row = marmap::getNOAA.bathy(lon1 = -72, lon2 = -62, #you can hard code this
+lat1 = lat[1], lat2 = lat[2], #or use the data in  your vector
+resolution = 4) #default resolution is 4 minutes
+bath_m_raw = marmap::getNOAA.bathy(lon1 = -72, lon2 = -62, #you can hard code this
+lat1 = lat[1], lat2 = lat[2], #or use the data in  your vector
+resolution = 4) #default resolution is 4 minutes
+bath_m_df = marmap::fortify.bathy(bath_m_raw)
+class(bath_m_df)
+head(bath_m_df)
+bath_m = bath_m_df %>%
+mutate(depth_m = ifelse(z > 20, NA, z)) #getting rid of stuff above sea level, doing it at 20 instead of 0 bc doing it at 0 will get rid of some coastal data bc of tides and what not
+GOM_bath_map = ggplot() +
+geom_raster(data= bath_m, aes(x=x, y = y, fill= depth_m))+
+geom_polygon(data=world_map, aes(x = long, y = lat, group = group))+
+coord_fixed(ratio=1.3, xlim=lon, ylim=lat, expand = FALSE)
+GOM_bath_map
+GOM_bath_map = ggplot() +
+geom_raster(data= bath_m, aes(x=x, y = y, fill= depth_m))+
+geom_polygon(data=world_map, aes(x = long, y = lat, group = group))+
+coord_fixed(ratio=1.3, xlim=lon, ylim=lat, expand = FALSE)+
+scale_fill_gradientn(colors=c("black", "darkblue", "lightblue"),
+values=scales::rescale(-6000, -300, 0)) #scales is a tidyverse package, need to rescale it so that it doesn't just automatically do a linear scale
+GOM_bath_map
+GOM_bath_map = ggplot() +
+geom_raster(data= bath_m, aes(x=x, y = y, fill= depth_m))+
+geom_polygon(data=world_map, aes(x = long, y = lat, group = group))+
+coord_fixed(ratio=1.3, xlim=lon, ylim=lat, expand = FALSE)+
+scale_fill_gradientn(colors=c("black", "darkblue", "lightblue"),
+values=scales::rescale(c(-6000, -300, 0))) #scales is a tidyverse package, need to rescale it so that it doesn't just automatically do a linear scale
+GOM_bath_map
+#adding contour lines
+GOM_bath_map_contours = ggplot() +
+geom_contour(data=bath_m, aes(x=x, y =y, z=depth_m), breaks = c(-100))+
+geom_polygon(data=world_map, aes(x=long))
+#adding contour lines
+GOM_bath_map_contours = ggplot() +
+geom_contour(data=bath_m, aes(x=x, y =y, z=depth_m), breaks = c(-100))+
+geom_polygon(data=world_map, aes(x=long))+
+coord_fixed(ratio=1.3, xlim=lon, ylim=lat)
+GOM_bath_map_contours
+#adding contour lines
+GOM_bath_map_contours = ggplot() +
+geom_contour(data=bath_m, aes(x=x, y = y, z=depth_m), breaks = c(-100))+
+geom_polygon(data=world_map, aes(x=long, y=lat, group=group))+
+coord_fixed(ratio=1.3, xlim=lon, ylim=lat)
+GOM_bath_map_contours
+#adding contour lines
+GOM_bath_map_contours = ggplot() +
+geom_contour(data=bath_m, aes(x=x, y = y, z=depth_m),
+breaks = c(-100),
+color = "grey", size = 0.25)+
+geom_contour(data=bath_m, aes(x=x, y = y, z=depth_m),
+breaks = c(-200),
+color = "grey", size = 0.5)+
+geom_contour(data=bath_m, aes(x=x, y = y, z=depth_m),
+breaks = c(-500),
+color = "grey", size = 075)+
+geom_polygon(data=world_map, aes(x=long, y=lat, group=group))+
+coord_fixed(ratio=1.3, xlim=lon, ylim=lat)+
+theme_classic()
+#adding contour lines
+GOM_bath_map_contours = ggplot() +
+geom_contour(data=bath_m, aes(x=x, y = y, z=depth_m),
+breaks = c(-100),
+breaks = c(-100),
+color = "grey", size = 0.25)+
+geom_contour(data=bath_m, aes(x=x, y = y, z=depth_m),
+breaks = c(-200),
+color = "grey", size = 0.5)+
+geom_contour(data=bath_m, aes(x=x, y = y, z=depth_m),
+breaks = c(-500),
+color = "grey", size = 0.75)+
+geom_polygon(data=world_map, aes(x=long, y=lat, group=group))+
+coord_fixed(ratio=1.3, xlim=lon, ylim=lat)+
+theme_classic()
+GOM_bath_map_contours
+class(chl_GOM_raster)
+class(bath_m_raw)
+bath_m_raster = marmap::as.raster(bath_m_raw)
+class(bath_m_raster)
+attr(chl_GOM_raster)
+chl_GOM_raster
+bath_m_raster
+names(bath_m_raster) = "bath_m"
+bath_resample = raster::resample(bath_m_raster, chl_GOM_raster) #resamples the first variable to match the second
+#now we stack them
+raster_stack = stack(chl_GOM_raster, bath_m_raster)
+#now we stack them
+raster_stack = stack(chl_GOM_raster, bath_resample)
+plot(raster_stack)
+stack_df = data.frame(raster::rasterToPoints(raster_stack))
+head(stack_df)
+oligo_chl_a = 0.1 #mg/m^3
+eutro_chl_a = 1.67 #mg/m^3
+stack_df_trophic = stack_df %>%
+mutate(trophic_index = case_when(chl_a < oligo_chl_a ~ "oligotrophic", #case_when is like an if_else statment but you can have more than 2 options
+chl_a > oligo_chla_a $ chla_a < eutro_chl_a ~ "mesotrophic",
+stack_df_trophic = stack_df %>%
+mutate(trophic_index = case_when(chl_a < oligo_chl_a ~ "oligotrophic", #case_when is like an if_else statment but you can have more than 2 options
+chl_a > oligo_chla_a & chla_a < eutro_chl_a ~ "mesotrophic",
+chla_a > eutro_chl_a ~ "eutrophic"))
+oligo_chl_a = 0.1 #mg/m^3
+eutro_chl_a = 1.67 #mg/m^3
+stack_df_trophic = stack_df %>%
+mutate(trophic_index = case_when(chl_a < oligo_chl_a ~ "oligotrophic", #case_when is like an if_else statment but you can have more than 2 options
+chl_a > oligo_chla_a & chla_a < eutro_chl_a ~ "mesotrophic",
+chla_a > eutro_chl_a ~ "eutrophic"))
+stack_df_trophic = stack_df %>%
+mutate(trophic_index = case_when(chl_a < oligo_chl_a ~ "oligotrophic", #case_when is like an if_else statment but you can have more than 2 options
+chl_a > oligo_chla_a & chla_a < eutro_chl_a ~ "mesotrophic",
+chl_a > eutro_chl_a ~ "eutrophic"))
+stack_df_trophic = stack_df %>%
+mutate(trophic_index = case_when(chl_a < oligo_chl_a ~ "oligotrophic", #case_when is like an if_else statment but you can have more than 2 options
+chl_a > oligo_chl_a & chla_a < eutro_chl_a ~ "mesotrophic",
+chl_a > eutro_chl_a ~ "eutrophic"))
+stack_df_trophic = stack_df %>%
+mutate(trophic_index = case_when(chl_a < oligo_chl_a ~ "oligotrophic", #case_when is like an if_else statment but you can have more than 2 options
+chl_a > oligo_chl_a & chl_a < eutro_chl_a ~ "mesotrophic",
+chl_a > eutro_chl_a ~ "eutrophic"))
+summary(stack_df_trophic)
+stack_df_trophic = stack_df %>%
+mutate(trophic_index = case_when(chl_a < oligo_chl_a ~ "oligotrophic", #case_when is like an if_else statment but you can have more than 2 options
+chl_a > oligo_chl_a & chl_a < eutro_chl_a ~ "mesotrophic",
+chl_a > eutro_chl_a ~ "eutrophic")) %>%
+mutate(trophic_index = as.factor(trophic_index))
+summary(stack_df_trophic)
+table(stack_df_trophic$trophic_index)
+ggplot() +
+geom_histogram(data=stack_df_trophic %>% filter(!is.na(trophic_index)), aes(x=bath_m))+
+facet_wrap(~trophic_index)
+ggplot() +
+geom_histogram(data=stack_df_trophic, aes(x=bath_m))+
+facet_wrap(~trophic_index)
+trophic_map = ggplot()+
+geom_raster(data=stack_df_trophic, aes(x=x, y =y, fill = trophic_index))+
+geom_polygon(data = world_map, aes(x=long, y = lat, group = group))+
+coord_fixed(ratio=1.3, xlim=lon, ylim=lat)+
+theme_classic()
+trophic_map
+trophic_map = ggplot()+
+geom_raster(data=stack_df_trophic, aes(x=x, y =y, fill = trophic_index))+
+geom_polygon(data = world_map, aes(x=long, y = lat, group = group))+
+coord_fixed(ratio=1.3, xlim=lon, ylim=lat, expand = FALSE)+
+theme_classic()
+trophic_map
+knitr::opts_chunk$set(echo = TRUE)
+names(chl_raster) = "chl_a"
+
+
+                                                                
+                                                                
+```
