@@ -1,0 +1,11 @@
+---
+title: "Class Notes Special Vectors"
+author: "Holly Westbrook"
+date: "4/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+i fucked up and overwrote my notes for rasters before pushing them to git hub hahahhaahahahahah
